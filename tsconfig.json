@@ -1,32 +1,35 @@
 {
-    "compileOnSave": true,
-    "include": [
-        "./packages/**/*"
+  "compileOnSave": true,
+  "include": [
+    "./packages/**/*"
+  ],
+  "exclude": [
+    "./packages/**/**/__tests__/**/**"
+  ],
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": [
+      "ESNext",
+      "DOM"
     ],
-    "compilerOptions": {
-        "target": "ESNext",
-        "useDefineForClassFields": true,
-        "module": "ESNext",
-        "lib": [
-            "ESNext",
-            "DOM"
-        ],
-        "moduleResolution": "Node",
-        "strict": true,
-        "sourceMap": true,
-        "resolveJsonModule": true,
-        "isolatedModules": true,
-        "esModuleInterop": true,
-        "noEmit": true,
-        "noUnusedLocals": false,
-        "noUnusedParameters": false,
-        "noImplicitReturns": false,
-        "skipLibCheck": true,
-        "baseUrl": "./packages",
-        "paths": {
-            "hostConfig": [
-                "./react-reconciler/src/hostConfig.ts"
-            ]
-        }
+    "moduleResolution": "Node",
+    "strict": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "baseUrl": "./packages",
+    "paths": {
+      "hostConfig": [
+        "./react-dom/src/hostConfig.ts"
+      ]
     }
+  }
 }
