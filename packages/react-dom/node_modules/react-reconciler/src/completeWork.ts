@@ -3,8 +3,11 @@ import { FiberNode } from './fiber'
 import { workTags } from './workTags'
 import fiberFlags from './fiberFlags'
 
+const markUpdate = (fiber: FiberNode) => {
+	fiber.flags |= fiberFlags.Update
+}
+
 export const compeleteWork = (wipFiber: FiberNode) => {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const newProps = wipFiber.pendingProps
 	const current = wipFiber.alternate
 
@@ -17,18 +20,22 @@ export const compeleteWork = (wipFiber: FiberNode) => {
 				const instance = creatHostInstance(wipFiber.type)
 				appendAllChildren(instance, wipFiber)
 				wipFiber.stateNode = instance
-				bubbleFlags(wipFiber)
 			}
+			bubbleFlags(wipFiber)
 			break
 		case workTags.HostText:
 			if (current !== null && wipFiber.stateNode) {
 				//
+				const oldText = current.memoizedProps.text
+				const newText = newProps.text
+				if (oldText !== newText) markUpdate(wipFiber)
 			} else {
 				const instance = creatHostTextInstance(wipFiber.pendingProps.text)
 				// const instance = creatHostTextInstance(wipFiber.type, newProps)
 				wipFiber.stateNode = instance
-				bubbleFlags(wipFiber)
 			}
+			bubbleFlags(wipFiber)
+
 			break
 		case workTags.FunctionComponent:
 			bubbleFlags(wipFiber)

@@ -16,14 +16,14 @@ export default defineConfig({
 				find: 'react-dom',
 				replacement: resolvePkgPath('react-dom')
 			},
-			// {
-			// 	find: 'react-reconciler',
-			// 	replacement: resolvePkgPath('react-reconciler')
-			// },
-			// {
-			// 	find: 'shared',
-			// 	replacement: resolvePkgPath('shared')
-			// },
+			{
+				find: 'react-reconciler',
+				replacement: resolvePkgPath('react-reconciler')
+			},
+			{
+				find: 'shared',
+				replacement: resolvePkgPath('shared')
+			},
 			{
 				find: 'hostConfig',
 				replacement: path.resolve(resolvePkgPath('react-dom'), './src/hostConfig.ts')

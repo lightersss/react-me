@@ -68,7 +68,7 @@ const workLoop = () => {
  */
 const performUnitOfWork = (fiber: FiberNode) => {
 	const nextFiber = beginWork(fiber)
-	fiber.memoizedPros = fiber.pendingProps
+	fiber.memoizedProps = fiber.pendingProps
 	if (nextFiber === null) {
 		completeUnitOfWork(fiber)
 	} else {

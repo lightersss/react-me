@@ -15,10 +15,11 @@ export class FiberNode {
 	child: null | FiberNode
 	index: number
 	ref: Ref
-	memoizedPros: Props
+	memoizedProps: Props
 	memoizedState: any
 
 	updateQueue: UpdateQueue<unknown>
+	deletions: FiberNode[] | null
 
 	alternate: null | FiberNode = null
 	flags: fiberFlags = fiberFlags.NoFlags
@@ -51,12 +52,12 @@ export class FiberNode {
 		/**
 		 * pedningprops处理完成后变成memoizedPros
 		 */
-		this.memoizedPros = null
+		this.memoizedProps = null
 		this.updateQueue = {
 			shared: { pending: null },
 			dispatch: null
 		}
-
+		this.deletions = null
 		this.alternate = null
 		this.flags = fiberFlags.NoFlags
 		this.subTreeFlags = fiberFlags.NoFlags
@@ -95,11 +96,12 @@ export const createWorkInProgress = (fiber: FiberNode, pendingProps: Props) => {
 	} else {
 		wip.pendingProps = pendingProps
 		wip.flags = fiberFlags.NoFlags
+		fiber.deletions = null
 	}
 	wip.type = fiber.type
 	wip.updateQueue = fiber.updateQueue
 	wip.child = fiber.child
-	wip.memoizedPros = fiber.memoizedPros
+	wip.memoizedProps = fiber.memoizedProps
 	wip.memoizedState = fiber.memoizedState
 	return wip
 }

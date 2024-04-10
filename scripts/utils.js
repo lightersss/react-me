@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs'
 import path from 'path'
 
-const pkgPath = path.resolve(__dirname, '../../packages')
-const distPath = path.resolve(__dirname, '../../dist/node_modules')
+const pkgPath = path.resolve(__dirname, '../packages')
+const distPath = path.resolve(__dirname, '../dist/node_modules')
 
 export function resolvePkgPath(pkgName, isDist) {
 	if (isDist) {
