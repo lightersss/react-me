@@ -1,19 +1,49 @@
+import { scheduleMicroTask } from 'hostConfig'
 import { beginWork } from './beginWork'
 import { commitMutationEffects } from './commitWork'
 import { compeleteWork } from './completeWork'
 import { createWorkInProgress, FiberNode, FiberRootNode } from './fiber'
 import fiberFlags, { fiberMask } from './fiberFlags'
+import {
+	getHighestPriorityLane,
+	Lane,
+	markRootFinished,
+	mergeLans,
+	NoLane,
+	SyncLane
+} from './fiberLane'
+import { flushSyncCallback, scheduleSyncCallback } from './syncTaskQueue'
 import { workTags } from './workTags'
 
 let workInProgress: FiberNode | null = null
+let workInProgressRootRenderLane: Lane = NoLane
 
-const prepareFreshContext = (fiberRootNode: FiberRootNode) => {
+const prepareFreshContext = (fiberRootNode: FiberRootNode, lane: Lane) => {
 	workInProgress = createWorkInProgress(fiberRootNode.current, {})
+	workInProgressRootRenderLane = lane
 }
 
-export const scheduleUpdateOnFiber = (fiber: FiberNode) => {
+export const scheduleUpdateOnFiber = (fiber: FiberNode, lane: Lane) => {
 	const root = markUpdateFromFiberToRoot(fiber)
-	renderRoot(root)
+	markRootUpdated(root, lane)
+	ensureRootIsScheduled(root)
+}
+
+function ensureRootIsScheduled(root: FiberRootNode) {
+	const updateLane = getHighestPriorityLane(root.pendingLans)
+	if (updateLane === NoLane) {
+		return
+	}
+	if (updateLane === SyncLane) {
+		scheduleSyncCallback(performSyncWorkOnFiber.bind(null, root, updateLane))
+		scheduleMicroTask(flushSyncCallback)
+	} else {
+		//
+	}
+}
+
+const markRootUpdated = (root: FiberRootNode, lane: Lane) => {
+	root.pendingLans = mergeLans(root.pendingLans, lane)
 }
 
 const markUpdateFromFiberToRoot = (fiber: FiberNode) => {
@@ -28,9 +58,13 @@ const markUpdateFromFiberToRoot = (fiber: FiberNode) => {
 }
 
 const commitRoot = (root: FiberRootNode) => {
+	console.debug('commitRoot start')
 	const finishedWork = root.finishedWork
 	if (!finishedWork) return
+	const finishedLane = root.finishedLane
 	root.finishedWork = null
+	root.finishedLane = NoLane
+	markRootFinished(root, finishedLane)
 
 	const subtreeHasEffect = (finishedWork.subTreeFlags & fiberMask.Mutation) !== fiberFlags.NoFlags
 	const rootHasEffect = (finishedWork.flags & fiberMask.Mutation) !== fiberFlags.NoFlags
@@ -43,8 +77,14 @@ const commitRoot = (root: FiberRootNode) => {
 	}
 }
 
-const renderRoot = (fiberRootNode: FiberRootNode) => {
-	prepareFreshContext(fiberRootNode)
+const performSyncWorkOnFiber = (fiberRootNode: FiberRootNode, lane: Lane) => {
+	console.debug('performSyncWorkOnFiber begin')
+	const nextLane = getHighestPriorityLane(fiberRootNode.pendingLans)
+	if (nextLane !== SyncLane) {
+		ensureRootIsScheduled(fiberRootNode)
+		return
+	}
+	prepareFreshContext(fiberRootNode, lane)
 	do {
 		workLoop()
 		break
@@ -52,6 +92,9 @@ const renderRoot = (fiberRootNode: FiberRootNode) => {
 	} while (true)
 
 	fiberRootNode.finishedWork = fiberRootNode.current.alternate
+
+	workInProgressRootRenderLane = NoLane
+	fiberRootNode.finishedLane = lane
 	if (fiberRootNode.finishedWork) {
 		commitRoot(fiberRootNode)
 	}
@@ -67,7 +110,7 @@ const workLoop = () => {
  * @description 在workLoop中 performUnitOfWork 一路递归向下到最底层的子节点(CFilber)，（期间路径上的所有的节点都会执行beginWork）， 然后执行CFilber的completeUnitOfWork
  */
 const performUnitOfWork = (fiber: FiberNode) => {
-	const nextFiber = beginWork(fiber)
+	const nextFiber = beginWork(fiber, workInProgressRootRenderLane)
 	fiber.memoizedProps = fiber.pendingProps
 	if (nextFiber === null) {
 		completeUnitOfWork(fiber)

@@ -1,4 +1,11 @@
-import { appendChildToContainer, Container, removeChild, updateText } from 'hostConfig'
+import {
+	appendChildToContainer,
+	Container,
+	insertChildToContainer,
+	Instance,
+	removeChild,
+	updateText
+} from 'hostConfig'
 import { FiberNode } from './fiber'
 import fiberFlags, { fiberMask } from './fiberFlags'
 import { workTags } from './workTags'
@@ -16,10 +23,10 @@ export const commitMutationEffects = (finishedWork: FiberNode) => {
 		} else {
 			while (nextFiber !== null) {
 				commitMutationEffectOnFiber(nextFiber)
-				let sibling = nextFiber.sibling
+				const sibling: FiberNode | null = nextFiber.sibling
 
 				if (sibling !== null) {
-					sibling = sibling.sibling
+					nextFiber = sibling
 					break
 				}
 				nextFiber = nextFiber.return
@@ -51,8 +58,52 @@ const commitMutationEffectOnFiber = (fiber: FiberNode) => {
 
 const commitPlacement = (fiber: FiberNode) => {
 	const hostParent = getHostParent(fiber)
+	const hostSibling = getHostSibling(fiber)
 	if (!hostParent) return
-	appendPlacementNodeIntoContainer(fiber, hostParent)
+	insterOrAppendPlacementNodeIntoContainer(fiber, hostParent, hostSibling)
+}
+
+//找到最近的 hostcomponent 的 兄弟节点
+const getHostSibling = (fiber: FiberNode) => {
+	let node = fiber
+
+	// eslint-disable-next-line no-constant-condition
+	outer: while (true) {
+		while (node.sibling === null) {
+			const parent = fiber.return
+
+			if (
+				parent === null ||
+				//找到父亲的 hostcomponent 了，说明sibling里没有可以用的 hostcomponent 了
+				parent.tag === workTags.HostComponent ||
+				parent.tag === workTags.HostRoot
+			) {
+				return null
+			}
+
+			node = parent
+		}
+
+		node.sibling.return = node.return
+		node = node.sibling
+
+		while (node.tag !== workTags.HostComponent && node.tag !== workTags.HostText) {
+			if ((node.flags & fiberFlags.Placement) !== fiberFlags.NoFlags) {
+				continue outer
+			}
+
+			if (node.child === null) {
+				continue outer
+			} else {
+				node.child.return = node
+				node = node.child
+			}
+		}
+
+		if ((node.flags & fiberFlags.Placement) === fiberFlags.NoFlags) {
+			return node.stateNode
+		}
+	}
 }
 
 const commitUpdate = (fiber: FiberNode) => {
@@ -63,8 +114,24 @@ const commitUpdate = (fiber: FiberNode) => {
 	}
 }
 
+function recordChildToDelete(childrenToDelete: FiberNode[], fiber: FiberNode) {
+	const lastOne = childrenToDelete[childrenToDelete.length - 1]
+	if (!lastOne) {
+		childrenToDelete.push(fiber)
+	} else {
+		let node = lastOne.sibling
+		while (node !== null) {
+			if (fiber === node) {
+				childrenToDelete.push(fiber)
+			}
+			node = node.sibling
+		}
+	}
+}
+
 const commitDeletion = (childToDelete: FiberNode) => {
-	let rootHostInstance: FiberNode | null = null as FiberNode | null
+	// let rootHostInstance: FiberNode | null = null as FiberNode | null
+	const childrenToDelete: FiberNode[] = []
 
 	const commitNestedComponent = (root: FiberNode, onUnmount: (fiber: FiberNode) => void) => {
 		let node = root
@@ -88,28 +155,28 @@ const commitDeletion = (childToDelete: FiberNode) => {
 	commitNestedComponent(childToDelete, (fiberToUnmount) => {
 		switch (fiberToUnmount.tag) {
 			case workTags.HostComponent:
-				if (rootHostInstance === null) {
-					rootHostInstance = fiberToUnmount
-				}
+				// if (rootHostInstance === null) {
+				// 	rootHostInstance = fiberToUnmount
+				// }
+				recordChildToDelete(childrenToDelete, fiberToUnmount)
 
 				return
 			case workTags.HostText:
-				if (rootHostInstance === null) {
-					rootHostInstance = fiberToUnmount
-				}
+				recordChildToDelete(childrenToDelete, fiberToUnmount)
+
 				return
 			case workTags.FunctionComponent:
-				if (rootHostInstance === null) {
-					// rootHostInstance = fiberToUnmount
-				}
+				// if (rootHostInstance === null) {
+				// 	// rootHostInstance = fiberToUnmount
+				// }
 				return
 		}
 	})
 
-	if (rootHostInstance !== null) {
+	if (childrenToDelete.length) {
 		const hostParent = getHostParent(childToDelete)
-		//TODO 有问题
-		hostParent && removeChild(rootHostInstance.stateNode, hostParent)
+		hostParent && childrenToDelete.forEach((child) => removeChild(child.stateNode, hostParent))
+		// hostParent && removeChild(rootHostInstance.stateNode, hostParent)
 	}
 }
 
@@ -133,19 +200,27 @@ const getHostParent = (fiber: FiberNode): Container | null => {
 	return null
 }
 
-const appendPlacementNodeIntoContainer = (placementFiber: FiberNode, hostParent: Container) => {
+const insterOrAppendPlacementNodeIntoContainer = (
+	placementFiber: FiberNode,
+	hostParent: Container,
+	before?: Instance
+) => {
 	if (placementFiber.tag === workTags.HostComponent || placementFiber.tag === workTags.HostText) {
-		appendChildToContainer(placementFiber.stateNode, hostParent)
+		if (before) {
+			insertChildToContainer(placementFiber.stateNode, hostParent, before)
+		} else {
+			appendChildToContainer(placementFiber.stateNode, hostParent)
+		}
 		return
 	}
 
 	const child = placementFiber.child
 	if (child !== null) {
-		appendPlacementNodeIntoContainer(child, hostParent)
+		insterOrAppendPlacementNodeIntoContainer(child, hostParent)
 
 		let sibling = child.sibling
 		while (sibling) {
-			appendChildToContainer(sibling.stateNode, hostParent)
+			insterOrAppendPlacementNodeIntoContainer(sibling, hostParent)
 			sibling = sibling.sibling
 		}
 	}

@@ -2,6 +2,7 @@ import { appendHostChild, creatHostInstance, creatHostTextInstance, Instance } f
 import { FiberNode } from './fiber'
 import { workTags } from './workTags'
 import fiberFlags from './fiberFlags'
+import { updateElementProps } from 'react-dom/src/syntheticEvent'
 
 const markUpdate = (fiber: FiberNode) => {
 	fiber.flags |= fiberFlags.Update
@@ -15,9 +16,10 @@ export const compeleteWork = (wipFiber: FiberNode) => {
 		case workTags.HostComponent:
 			if (current !== null && wipFiber.stateNode) {
 				//
+				updateElementProps(wipFiber.stateNode, newProps)
 			} else {
 				// const instance = creatHostInstance(wipFiber.type, newProps)
-				const instance = creatHostInstance(wipFiber.type)
+				const instance = creatHostInstance(wipFiber.type, newProps)
 				appendAllChildren(instance, wipFiber)
 				wipFiber.stateNode = instance
 			}
@@ -41,6 +43,9 @@ export const compeleteWork = (wipFiber: FiberNode) => {
 			bubbleFlags(wipFiber)
 			break
 		case workTags.HostRoot:
+			bubbleFlags(wipFiber)
+			break
+		case workTags.Fragment:
 			bubbleFlags(wipFiber)
 			break
 		default:

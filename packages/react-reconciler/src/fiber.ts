@@ -3,6 +3,7 @@ import { workTags } from './workTags'
 import fiberFlags from './fiberFlags'
 import { Container } from 'hostConfig'
 import { UpdateQueue } from './updateQueue'
+import { Lane, Lanes, NoLane, NoLanes } from './fiberLane'
 
 export class FiberNode {
 	type: any
@@ -26,7 +27,7 @@ export class FiberNode {
 	subTreeFlags: fiberFlags = fiberFlags.NoFlags
 	constructor(tag: workTags, pendingProps: Props, key: Key) {
 		this.tag = tag
-		this.key = key
+		this.key = key ?? null
 		/**
 		 * 对于HostCompent stateNode对应宿主环境中的节点。比如div
 		 */
@@ -74,9 +75,14 @@ export class FiberRootNode {
 	container: Container
 	current: FiberNode
 	finishedWork: FiberNode | null
+	pendingLans: Lanes
+	finishedLane: Lane
 	constructor(container: Container, hostRootFiber: FiberNode) {
 		this.container = container
 		this.current = hostRootFiber
+		this.finishedLane = NoLane
+		this.pendingLans = NoLanes
+
 		hostRootFiber.stateNode = this
 		this.finishedWork = null
 	}
@@ -117,5 +123,10 @@ export function createFiberFromReactElement(reactElement: ReactElementType) {
 
 	const fiber = new FiberNode(fiberTag, props, key)
 	fiber.type = type
+	return fiber
+}
+
+export function createFiberFromFragement(elements: unknown[], key: Key) {
+	const fiber = new FiberNode(workTags.Fragment, elements, key)
 	return fiber
 }

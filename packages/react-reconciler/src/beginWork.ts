@@ -4,17 +4,20 @@ import { processUpdateQueue } from './updateQueue'
 import { workTags } from './workTags'
 import { mountChildFibers, reconcileChildFibers } from './childFibers'
 import { renderWithHooks } from './fiberHooks'
+import { Lane } from './fiberLane'
 
-export const beginWork = (fiber: FiberNode) => {
+export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	switch (fiber.tag) {
 		case workTags.HostRoot:
-			return updateHostRoot(fiber)
+			return updateHostRoot(fiber, lane)
 		case workTags.FunctionComponent:
-			return updateFunctionComponent(fiber)
+			return updateFunctionComponent(fiber, lane)
 		case workTags.HostComponent:
 			return updateHostComponent(fiber)
 		case workTags.HostText:
 			return null
+		case workTags.Fragment:
+			return updateFragment(fiber)
 		default:
 			if (__DEV__) {
 				console.error('未实现的类型')
@@ -32,12 +35,12 @@ export const beginWork = (fiber: FiberNode) => {
  * @param fiber
  * @returns
  */
-function updateHostRoot(fiber: FiberNode) {
+function updateHostRoot(fiber: FiberNode, lane: Lane) {
 	const baseState = fiber.memoizedState
 	const updateQueue = fiber.updateQueue
 	const pendingUpdateQueue = updateQueue?.shared.pending
 	updateQueue.shared.pending = null
-	const { memorizedState } = processUpdateQueue(baseState, pendingUpdateQueue)
+	const { memorizedState } = processUpdateQueue(baseState, pendingUpdateQueue, lane)
 	fiber.memoizedState = memorizedState
 	reconcileChildren(fiber, memorizedState as ReactElementType)
 	return fiber.child
@@ -59,8 +62,14 @@ function reconcileChildren(wipFiber: FiberNode, children?: ReactElementType) {
 	}
 }
 
-function updateFunctionComponent(fiber: FiberNode) {
-	const children = renderWithHooks(fiber)
+function updateFunctionComponent(fiber: FiberNode, lane: Lane) {
+	const children = renderWithHooks(fiber, lane)
+	reconcileChildren(fiber, children)
+	return fiber.child
+}
+
+function updateFragment(fiber: FiberNode) {
+	const children = fiber.pendingProps
 	reconcileChildren(fiber, children)
 	return fiber.child
 }

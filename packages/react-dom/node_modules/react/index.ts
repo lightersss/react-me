@@ -1,5 +1,5 @@
 import currentDispatcher, { Dispatcher, resolveDispatcher } from './src/currentDispacher'
-import { jsx } from './src/jsx'
+import { jsx, Fragment } from './src/jsx'
 
 export const useState: Dispatcher['useState'] = (initalValue) => {
 	const dispatcher = resolveDispatcher()
@@ -13,5 +13,6 @@ export const createElement = jsx
 
 export default {
 	version: '1.0.0',
-	createElement: jsx
+	createElement: jsx,
+	Fragment
 }

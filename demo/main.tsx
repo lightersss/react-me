@@ -1,12 +1,31 @@
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 
-const Child = () => <div>child</div>
-
 const App = () => {
-	const [state, setState] = useState(1)
-	window.setState = setState
-	return <div>{state === 1 ? <Child /> : <span>{state}</span>}</div>
+	const [num, setNum] = useState(1)
+
+	return (
+		<div
+			onClick={() => {
+				setNum(function a(v) {
+					console.log('a')
+					return v + 1
+				})
+				setNum(function b(v) {
+					console.log('b')
+
+					return v + 1
+				})
+				setNum(function c(v) {
+					console.log('c')
+
+					return v + 1
+				})
+			}}
+		>
+			{num}
+		</div>
+	)
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />)

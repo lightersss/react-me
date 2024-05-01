@@ -4,6 +4,7 @@
 	"description": "",
 	"main": "index.js",
 	"dependencies": {
+		"react-dom": "workspace:^",
 		"shared": "workspace:^"
 	},
 	"scripts": {

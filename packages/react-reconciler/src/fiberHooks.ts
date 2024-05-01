@@ -10,22 +10,23 @@ import {
 } from './updateQueue'
 import { scheduleUpdateOnFiber } from './workLoop'
 import { SetStateAction } from 'shared/ReactTypes'
+import { Lane, NoLane, requestUpdateLane } from './fiberLane'
 const { currentDispatcher } = internals
 type Hook = {
 	/**
 	 * hook自己的状态
 	 */
 	momoizedState: any
-	udpateQueue: UpdateQueue<unknown>
+	updateQueue: UpdateQueue<unknown>
 	next: Hook | null
 }
 let currentRenderingFiber: FiberNode | null = null
 let workInProgressHook: Hook | null = null
-
-export function renderWithHooks(fiber: FiberNode) {
+let renderLane: Lane = NoLane
+export function renderWithHooks(fiber: FiberNode, lane: Lane) {
 	currentRenderingFiber = fiber
 	fiber.memoizedState = null
-
+	renderLane = lane
 	const current = fiber.alternate
 
 	if (current !== null) {
@@ -39,12 +40,13 @@ export function renderWithHooks(fiber: FiberNode) {
 	const props = fiber.pendingProps
 	const children = Comp(props)
 	currentRenderingFiber = null
+	renderLane = NoLane
 	return children
 }
 const mountWorkInProgressHook = () => {
 	const hook: Hook = {
 		momoizedState: null,
-		udpateQueue: { shared: { pending: null }, dispatch: null },
+		updateQueue: { shared: { pending: null }, dispatch: null },
 		next: null
 	}
 
@@ -67,9 +69,10 @@ const dispatchSetState = <State>(
 	updateQueue: UpdateQueue<State>,
 	action: SetStateAction<State>
 ) => {
-	const update = createUpdate(action)
+	const lane = requestUpdateLane()
+	const update = createUpdate(action, lane)
 	enqueueUpdate(updateQueue, update)
-	scheduleUpdateOnFiber(fiber)
+	scheduleUpdateOnFiber(fiber, lane)
 }
 
 const mountState = <State>(initalState: State | (() => State)): [State, Dispatch<State>] => {
@@ -82,8 +85,8 @@ const mountState = <State>(initalState: State | (() => State)): [State, Dispatch
 	}
 
 	const updateQueue = createUpdateQueue<State>() as UpdateQueue<State>
-	hook.udpateQueue = updateQueue as UpdateQueue<unknown>
-
+	hook.updateQueue = updateQueue as UpdateQueue<unknown>
+	hook.momoizedState = state
 	const dispatch = dispatchSetState.bind<
 		null,
 		[FiberNode, UpdateQueue<State>],
@@ -120,7 +123,7 @@ const updateWorkInProgressHook = () => {
 
 	const newHook: Hook = {
 		momoizedState: currentHook?.momoizedState,
-		udpateQueue: hookToUpdate?.udpateQueue,
+		updateQueue: hookToUpdate?.updateQueue,
 		next: null
 	}
 
@@ -140,11 +143,12 @@ const updateWorkInProgressHook = () => {
 }
 const updateState = <State>(): [State, Dispatch<State>] => {
 	const hook = updateWorkInProgressHook()
-	const queue = hook.udpateQueue
+	const queue = hook.updateQueue
 	const pending = queue.shared.pending
 
+	queue.shared.pending = null
 	if (pending !== null) {
-		const { memorizedState } = processUpdateQueue(hook.momoizedState, pending)
+		const { memorizedState } = processUpdateQueue(hook.momoizedState, pending, renderLane)
 		hook.momoizedState = memorizedState
 	}
 
